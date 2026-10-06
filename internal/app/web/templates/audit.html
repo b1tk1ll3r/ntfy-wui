@@ -1,0 +1,45 @@
+{{define "actions"}}
+<a class="btn btn-secondary" href="{{abs "/audit/export"}}">{{icon "download"}}<span>Exportieren</span></a>
+{{end}}
+
+{{define "content"}}{{$d := .Data}}
+<section class="card card-flush">
+  <form class="toolbar toolbar-wrap" method="get" action="{{abs "/audit"}}">
+    <label class="search">
+      {{icon "search"}}
+      <input type="search" name="q" value="{{$d.Query}}" placeholder="Akteur, Aktion, Ziel oder IP …" aria-label="Suchen">
+    </label>
+    <select name="kind" aria-label="Kategorie" data-autosubmit>
+      <option value="" {{if eq $d.Kind ""}}selected{{end}}>Alle Kategorien</option>
+      <option value="ok" {{if eq $d.Kind "ok"}}selected{{end}}>Änderungen</option>
+      <option value="warn" {{if eq $d.Kind "warn"}}selected{{end}}>Löschungen &amp; Resets</option>
+      <option value="danger" {{if eq $d.Kind "danger"}}selected{{end}}>Fehlgeschlagene Logins</option>
+      <option value="muted" {{if eq $d.Kind "muted"}}selected{{end}}>An-/Abmeldungen</option>
+    </select>
+    <select name="limit" aria-label="Anzahl" data-autosubmit>
+      {{range $d.Limits}}<option value="{{.}}" {{if eq . $d.Limit}}selected{{end}}>letzte {{.}}</option>{{end}}
+    </select>
+    <button class="btn btn-secondary" type="submit">Filtern</button>
+    <span class="toolbar-meta">{{$d.Total}} Ereignisse · {{$d.Actors}} Akteure{{if $d.Failed}} · <span class="text-danger">{{$d.Failed}} fehlgeschlagene Logins</span>{{end}}</span>
+  </form>
+  <div class="table-wrap">
+    <table class="table table-compact">
+      <thead><tr><th>Zeit</th><th>Akteur</th><th>Aktion</th><th>Ziel</th><th>Details</th><th>IP</th></tr></thead>
+      <tbody>
+      {{range $d.Events}}
+        <tr>
+          <td class="nowrap"><time title="{{fmtTime .Time}}">{{fmtTime .Time}}</time><div class="muted small">{{ago .Time}}</div></td>
+          <td>{{if .Actor}}<span class="user-cell">{{template "avatar" (dict "Name" .Actor "Class" "avatar-xs")}}<span>{{.Actor}}</span></span>{{else}}<span class="muted">—</span>{{end}}</td>
+          <td><span class="badge kind-{{actionKind .Action}}" title="{{.Action}}">{{actionLabel .Action}}</span></td>
+          <td>{{if .Target}}<span class="mono">{{displayUser .Target}}</span>{{else}}<span class="muted">—</span>{{end}}</td>
+          <td><div class="chips">{{range $k, $v := .Meta}}{{if $v}}<span class="chip chip-muted"><span class="muted">{{$k}}:</span>&nbsp;{{$v}}</span>{{end}}{{end}}</div></td>
+          <td><code class="mono small" title="{{.UA}}">{{.IP}}</code></td>
+        </tr>
+      {{else}}
+        <tr class="empty-row"><td colspan="6"><div class="empty">{{icon "activity"}}<p>Keine Ereignisse gefunden.</p></div></td></tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+{{end}}

@@ -1,0 +1,15 @@
+# Example ntfy server.yml
+# Mount to /etc/ntfy/server.yml inside the ntfy container.
+#
+# Docs: https://docs.ntfy.sh/config/
+
+listen-http: ":80"
+base-url: "http://localhost" # set to your public URL
+cache-file: "/var/cache/ntfy/cache.db"
+
+# Enable authentication (required for user/access/token management)
+auth-file: "/var/lib/ntfy/user.db"
+auth-default-access: "deny-all"
+
+# Optional: log
+log-level: "info"

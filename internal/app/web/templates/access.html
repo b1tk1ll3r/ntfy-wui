@@ -1,0 +1,82 @@
+{{define "content"}}{{$d := .Data}}{{$csrf := .CSRF}}
+<div class="grid-2 grid-wide-right">
+  <div class="stack-lg">
+    <section class="card">
+      <div class="card-head"><div><h2>Zugriff vergeben</h2><p class="card-sub">Bestehende Regeln für dasselbe Topic werden überschrieben</p></div></div>
+      <form method="post" action="{{abs "/access"}}" class="stack" data-once>
+        <input type="hidden" name="csrf" value="{{$csrf}}">
+        <input type="hidden" name="action" value="grant">
+        <div class="field">
+          <label for="a-user">Benutzer</label>
+          <select id="a-user" name="username" required>
+            {{range $d.Users}}<option value="{{.Username}}" {{if eq .Username $d.Preselect}}selected{{end}}>{{displayUser .Username}}{{if .IsAdmin}} (admin){{end}}</option>{{end}}
+          </select>
+        </div>
+        <div class="field">
+          <label for="a-topic">Topic oder Muster</label>
+          <input id="a-topic" name="topic" required maxlength="64" placeholder="z. B. alerts, backup_* oder *" pattern="[A-Za-z0-9_*][A-Za-z0-9_*\-]*" autocomplete="off" spellcheck="false">
+          <small class="hint"><code>*</code> ist ein Platzhalter: <code>home_*</code> passt auf <code>home_door</code>, <code>home_alarm</code> …</small>
+        </div>
+        <div class="field">
+          <span class="label">Berechtigung</span>
+          {{template "permpicker"}}
+        </div>
+        <div><button class="btn btn-primary" type="submit">{{icon "check"}}<span>Zugriff setzen</span></button></div>
+      </form>
+    </section>
+
+    <section class="card card-muted">
+      <h3 class="card-title-sm">{{icon "info"}} So funktionieren die Rechte</h3>
+      <dl class="legend">
+        <dt>{{template "perm" "read-write"}}</dt><dd>Nachrichten abonnieren und veröffentlichen.</dd>
+        <dt>{{template "perm" "read-only"}}</dt><dd>Nur abonnieren (empfangen).</dd>
+        <dt>{{template "perm" "write-only"}}</dt><dd>Nur veröffentlichen (senden).</dd>
+        <dt>{{template "perm" "deny"}}</dt><dd>Explizit verbieten – überstimmt den Standardzugriff.</dd>
+      </dl>
+      <p class="hint">Standardzugriff (<code>auth-default-access</code>):
+        {{if $d.DefaultAccess}}{{template "perm" $d.DefaultAccess}}{{else}}<span class="muted">unbekannt</span>{{end}}
+        – gilt für alle Topics ohne eigene Regel. Admins haben immer vollen Zugriff.</p>
+    </section>
+  </div>
+
+  <section class="card card-flush">
+    <div class="card-head card-head-pad">
+      <div><h2>Alle Regeln</h2><p class="card-sub">{{len $d.Rows}} {{plural (len $d.Rows) "Regel" "Regeln"}} über alle Benutzer</p></div>
+    </div>
+    <div class="toolbar">
+      <label class="search">
+        {{icon "search"}}
+        <input type="search" placeholder="Benutzer oder Topic filtern …" data-filter="#access-table" aria-label="Regeln filtern">
+      </label>
+    </div>
+    <div class="table-wrap">
+      <table class="table table-hover" id="access-table">
+        <thead><tr><th>Benutzer</th><th>Topic</th><th>Berechtigung</th><th class="actions-col"><span class="sr-only">Aktionen</span></th></tr></thead>
+        <tbody>
+        {{range $d.Rows}}
+          <tr>
+            <td><a class="user-cell" href="{{userURL .User}}">{{template "avatar" (dict "Name" .User "Class" "avatar-sm")}}<span class="user-name">{{displayUser .User}}</span></a></td>
+            <td><span class="topic">{{icon "hash"}}{{.Entry.Topic}}</span>{{if .Entry.Provisioned}} <span class="chip chip-muted">server.yml</span>{{end}}</td>
+            <td>{{template "perm" .Entry.Perm}}</td>
+            <td class="actions-col">
+              {{if not .Entry.Provisioned}}
+              <form method="post" action="{{abs "/access"}}" data-confirm="Zugriff von „{{displayUser .User}}“ auf „{{.Entry.Topic}}“ entfernen?" data-confirm-ok="Entfernen">
+                <input type="hidden" name="csrf" value="{{$csrf}}">
+                <input type="hidden" name="action" value="revoke">
+                <input type="hidden" name="username" value="{{.User}}">
+                <input type="hidden" name="topic" value="{{.Entry.Topic}}">
+                <button class="icon-btn icon-btn-danger" type="submit" title="Entfernen" aria-label="Regel entfernen">{{icon "trash"}}</button>
+              </form>
+              {{end}}
+            </td>
+          </tr>
+        {{else}}
+          <tr class="empty-row"><td colspan="4"><div class="empty">{{icon "lock"}}<p>Noch keine topic-spezifischen Regeln.</p></div></td></tr>
+        {{end}}
+          <tr class="filter-empty" hidden><td colspan="4"><div class="empty">{{icon "search"}}<p>Keine Treffer.</p></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{{end}}

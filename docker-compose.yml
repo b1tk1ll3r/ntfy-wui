@@ -1,0 +1,53 @@
+services:
+  ntfy:
+    image: binwiederhier/ntfy:latest
+    command: ["serve"]
+    restart: unless-stopped
+    ports:
+      - "8080:80" # ntfy web app / API
+    volumes:
+      - ./examples/server.yml:/etc/ntfy/server.yml:ro
+      - ntfy_cache:/var/cache/ntfy
+      - ntfy_auth:/var/lib/ntfy
+    environment:
+      - TZ=Europe/Berlin
+
+  ntfywui:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - ntfy
+    ports:
+      - "8090:8080" # WebUI
+    # The ntfy CLI writes directly into ntfy's auth database (/var/lib/ntfy/user.db),
+    # which belongs to root in the default ntfy setup. The container therefore runs
+    # as root, but without any capabilities and with a read-only root filesystem.
+    # If you run ntfy with a dedicated UID, use that UID here instead.
+    user: "0:0"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs: [/tmp]
+    volumes:
+      - ./examples/server.yml:/etc/ntfy/server.yml:ro
+      - ntfy_auth:/var/lib/ntfy
+      - ntfywui_data:/data
+    environment:
+      - TZ=Europe/Berlin
+      # REQUIRED: strong random secret (>=32 bytes), e.g. `openssl rand -base64 48`
+      - NTFYWUI_SECRET=${NTFYWUI_SECRET:?set NTFYWUI_SECRET in .env}
+      # First admin (only used while no WebUI admin exists)
+      - NTFYWUI_BOOTSTRAP_USER=${NTFYWUI_BOOTSTRAP_USER:-}
+      - NTFYWUI_BOOTSTRAP_PASS=${NTFYWUI_BOOTSTRAP_PASS:-}
+      # Enables "Nachricht senden" and the server health check on the dashboard
+      - NTFYWUI_NTFY_URL=http://ntfy:80
+      # Secure cookies require HTTPS. For a plain-HTTP test setup on a host other than
+      # localhost set this to false (not recommended in production).
+      - NTFYWUI_COOKIE_SECURE=${NTFYWUI_COOKIE_SECURE:-true}
+      # Behind a reverse proxy? Trust only the proxy's IP/CIDR for X-Forwarded-For.
+      # - NTFYWUI_TRUST_PROXY=172.18.0.0/16
+
+volumes:
+  ntfy_cache:
+  ntfy_auth:
+  ntfywui_data:

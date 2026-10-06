@@ -1,0 +1,110 @@
+{{define "content"}}{{$d := .Data}}{{$me := $d.Me}}
+<div class="grid-2">
+  <div class="stack-lg">
+    <section class="card">
+      <div class="profile-head profile-head-card">
+        {{template "avatar" (dict "Name" $me.Username "Class" "avatar-xl")}}
+        <div class="profile-text">
+          <h2>{{$me.Username}}</h2>
+          <div class="chips"><span class="badge {{if eq $me.Role "admin"}}badge-accent{{end}}">{{roleLabel $me.Role}}</span>
+          {{if $me.HasTOTP}}<span class="status status-ok">{{icon "shield-check"}} 2FA aktiv</span>{{end}}</div>
+        </div>
+      </div>
+      <dl class="kv">
+        <dt>Konto erstellt</dt><dd>{{fmtUnix $me.CreatedAt}}</dd>
+        <dt>Letzte Anmeldung</dt><dd>{{fmtUnix $me.LastLogin}}</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><div><h2>Passwort ändern</h2><p class="card-sub">Andere Sitzungen werden danach abgemeldet</p></div></div>
+      <form method="post" action="{{abs "/account"}}" class="stack" data-once>
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="action" value="password">
+        <input type="text" name="username" value="{{$me.Username}}" autocomplete="username" hidden>
+        <div class="field">
+          <label for="ac-cur">Aktuelles Passwort</label>
+          <input id="ac-cur" name="current" type="password" required autocomplete="current-password">
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label for="ac-new">Neues Passwort</label>
+            <input id="ac-new" name="password" type="password" required minlength="8" autocomplete="new-password" data-strength>
+            <div class="strength" aria-hidden="true"><span></span></div>
+          </div>
+          <div class="field">
+            <label for="ac-conf">Wiederholen</label>
+            <input id="ac-conf" name="confirm" type="password" required minlength="8" autocomplete="new-password" data-match="#ac-new">
+          </div>
+        </div>
+        <div><button class="btn btn-primary" type="submit">Passwort ändern</button></div>
+      </form>
+    </section>
+  </div>
+
+  <section class="card" id="twofa">
+    <div class="card-head">
+      <div><h2>Zwei-Faktor-Authentifizierung</h2><p class="card-sub">Zusätzlicher Schutz mit einer Authenticator-App (TOTP)</p></div>
+    </div>
+
+    {{if $me.HasTOTP}}
+      <div class="status-panel status-panel-ok">
+        {{icon "shield-check"}}
+        <div><b>2FA ist aktiv.</b><p>Bei der Anmeldung wird zusätzlich ein 6-stelliger Code abgefragt.</p></div>
+      </div>
+      <form method="post" action="{{abs "/account"}}" class="stack" data-confirm="Zwei-Faktor-Authentifizierung wirklich deaktivieren?" data-confirm-ok="Deaktivieren">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="action" value="totp-disable">
+        <div class="field">
+          <label for="td-cur">Zum Deaktivieren Passwort eingeben</label>
+          <input id="td-cur" name="current" type="password" required autocomplete="current-password">
+        </div>
+        <div><button class="btn btn-danger-ghost" type="submit">2FA deaktivieren</button></div>
+      </form>
+
+    {{else if $d.PendingQR}}
+      <ol class="steps">
+        <li>
+          <b>QR-Code scannen</b>
+          <p>Mit einer Authenticator-App wie Aegis, 2FAS, Google Authenticator oder 1Password.</p>
+          <div class="qr">{{$d.PendingQR}}</div>
+          <details class="manual">
+            <summary>Code lässt sich nicht scannen?</summary>
+            <p class="hint">Gib diesen Schlüssel manuell ein (zeitbasiert, 6 Ziffern, 30 Sekunden):</p>
+            <div class="secret-box">
+              <code class="mono">{{$d.PendingSecret}}</code>
+              <button type="button" class="btn btn-sm btn-ghost" data-copy="{{$me.TOTPPending}}">{{icon "copy"}}<span>Kopieren</span></button>
+            </div>
+          </details>
+        </li>
+        <li>
+          <b>Code bestätigen</b>
+          <p>Gib den aktuell angezeigten 6-stelligen Code ein.</p>
+          <form method="post" action="{{abs "/account"}}" class="inline-form" data-once>
+            <input type="hidden" name="csrf" value="{{.CSRF}}">
+            <input type="hidden" name="action" value="totp-confirm">
+            <input class="otp-input otp-input-sm" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7" autocomplete="one-time-code" placeholder="000000" required aria-label="6-stelliger Code" data-autosubmit-len="6">
+            <button class="btn btn-primary" type="submit">{{icon "check"}}<span>Aktivieren</span></button>
+          </form>
+        </li>
+      </ol>
+      <form method="post" action="{{abs "/account"}}">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="action" value="totp-cancel">
+        <button class="btn btn-ghost btn-sm" type="submit">Einrichtung abbrechen</button>
+      </form>
+
+    {{else}}
+      <div class="status-panel">
+        {{icon "phone"}}
+        <div><b>2FA ist nicht eingerichtet.</b><p>Schütze dein Konto zusätzlich zum Passwort mit einem Einmal-Code vom Smartphone.</p></div>
+      </div>
+      <form method="post" action="{{abs "/account"}}">
+        <input type="hidden" name="csrf" value="{{.CSRF}}">
+        <input type="hidden" name="action" value="totp-begin">
+        <button class="btn btn-primary" type="submit">{{icon "shield-check"}}<span>2FA einrichten</span></button>
+      </form>
+    {{end}}
+  </section>
+</div>
+{{end}}

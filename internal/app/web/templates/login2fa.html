@@ -1,0 +1,23 @@
+{{define "content"}}
+<div class="auth-card">
+  <div class="auth-brand">
+    <span class="brand-mark brand-mark-lg">{{icon "shield-check"}}</span>
+    <div>
+      <div class="auth-title">Bestätigung</div>
+      <div class="auth-sub">Angemeldet als <b>{{.Data.Username}}</b></div>
+    </div>
+  </div>
+  {{template "flash" .}}
+  <form method="post" action="{{abs "/login/2fa"}}" class="stack" data-once>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="next" value="{{.Data.Next}}">
+    <div class="field">
+      <label for="code">Code aus deiner Authenticator-App</label>
+      <input id="code" class="otp-input" name="code" inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7"
+             autocomplete="one-time-code" placeholder="000000" required autofocus data-autosubmit-len="6">
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Bestätigen {{icon "arrow-right"}}</button>
+  </form>
+  <div class="auth-foot"><a href="{{abs "/login"}}">{{icon "arrow-left"}} Zurück zur Anmeldung</a></div>
+</div>
+{{end}}

@@ -1,0 +1,135 @@
+{{define "actions"}}
+<button class="btn btn-primary" type="button" data-dialog-open="#dlg-admin">{{icon "user-plus"}}<span>Neuer Admin</span></button>
+{{end}}
+
+{{define "content"}}{{$csrf := .CSRF}}{{$me := .Admin.Username}}
+<section class="card card-flush">
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Konto</th><th>Rolle</th><th>2FA</th><th>Status</th><th>Letzte Anmeldung</th><th class="actions-col">Aktionen</th></tr></thead>
+      <tbody>
+      {{range .Data}}
+        <tr class="{{if .Disabled}}is-disabled{{end}}">
+          <td>
+            <div class="user-cell">
+              {{template "avatar" (dict "Name" .Username "Class" "")}}
+              <span class="user-cell-text">
+                <span class="user-name">{{.Username}}</span>
+                {{if eq .Username $me}}<span class="chip chip-accent">du</span>{{end}}
+                <span class="muted small">seit {{fmtUnix .CreatedAt}}</span>
+              </span>
+            </div>
+          </td>
+          <td>
+            {{if eq .Username $me}}
+              <span class="badge {{if eq .Role "admin"}}badge-accent{{end}}">{{roleLabel .Role}}</span>
+            {{else}}
+            <form method="post" action="{{abs "/admins"}}" class="role-form">
+              <input type="hidden" name="csrf" value="{{$csrf}}">
+              <input type="hidden" name="action" value="set-role">
+              <input type="hidden" name="username" value="{{.Username}}">
+              <select name="role" aria-label="Rolle von {{.Username}}" data-autosubmit>
+                {{$role := .Role}}
+                {{range roles}}<option value="{{.}}" {{if eq . $role}}selected{{end}}>{{roleLabel .}}</option>{{end}}
+              </select>
+              <noscript><button class="btn btn-sm btn-secondary" type="submit">OK</button></noscript>
+            </form>
+            {{end}}
+          </td>
+          <td>
+            {{if .HasTOTP}}<span class="status status-ok">{{icon "shield-check"}} aktiv</span>
+            {{else if .TOTPPending}}<span class="status status-warn">{{icon "clock"}} Einrichtung</span>
+            {{else}}<span class="status status-muted">{{icon "slash"}} aus</span>{{end}}
+          </td>
+          <td>{{if .Disabled}}<span class="badge badge-danger">deaktiviert</span>{{else}}<span class="badge badge-ok">aktiv</span>{{end}}</td>
+          <td><span title="{{fmtUnix .LastLogin}}">{{ago .LastLogin}}</span></td>
+          <td class="actions-col">
+            <div class="row-actions row-actions-end">
+              <button class="icon-btn" type="button" data-dialog-open="#dlg-pass" data-fill-username="{{.Username}}" title="Passwort setzen" aria-label="Passwort von {{.Username}} setzen">{{icon "key"}}</button>
+              {{if .HasTOTP}}
+              <form method="post" action="{{abs "/admins"}}" data-confirm="2FA von „{{.Username}}“ zurücksetzen? Das Konto ist danach nur noch mit Passwort geschützt." data-confirm-ok="Zurücksetzen">
+                <input type="hidden" name="csrf" value="{{$csrf}}">
+                <input type="hidden" name="action" value="2fa-reset">
+                <input type="hidden" name="username" value="{{.Username}}">
+                <button class="icon-btn" type="submit" title="2FA zurücksetzen" aria-label="2FA zurücksetzen">{{icon "phone"}}</button>
+              </form>
+              {{end}}
+              {{if ne .Username $me}}
+              <form method="post" action="{{abs "/admins"}}" {{if not .Disabled}}data-confirm="„{{.Username}}“ deaktivieren? Bestehende Sitzungen werden sofort ungültig." data-confirm-ok="Deaktivieren"{{end}}>
+                <input type="hidden" name="csrf" value="{{$csrf}}">
+                <input type="hidden" name="action" value="toggle-disable">
+                <input type="hidden" name="username" value="{{.Username}}">
+                <button class="icon-btn" type="submit" title="{{if .Disabled}}Aktivieren{{else}}Deaktivieren{{end}}" aria-label="{{if .Disabled}}Aktivieren{{else}}Deaktivieren{{end}}">{{if .Disabled}}{{icon "check"}}{{else}}{{icon "slash"}}{{end}}</button>
+              </form>
+              <form method="post" action="{{abs "/admins"}}" data-confirm="Admin „{{.Username}}“ endgültig löschen?" data-confirm-ok="Löschen">
+                <input type="hidden" name="csrf" value="{{$csrf}}">
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="username" value="{{.Username}}">
+                <button class="icon-btn icon-btn-danger" type="submit" title="Löschen" aria-label="{{.Username}} löschen">{{icon "trash"}}</button>
+              </form>
+              {{end}}
+            </div>
+          </td>
+        </tr>
+      {{end}}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="role-cards">
+  <div class="role-card"><span class="badge">Betrachter</span><p>Sieht Übersicht, Benutzer und deren Rechte – ändert nichts.</p></div>
+  <div class="role-card"><span class="badge">Operator</span><p>Verwaltet ntfy-Benutzer, Zugriffsrechte und Tokens und kann Nachrichten senden.</p></div>
+  <div class="role-card"><span class="badge badge-accent">Administrator</span><p>Zusätzlich: WebUI-Admins verwalten und Audit-Log einsehen.</p></div>
+</section>
+
+<dialog class="dialog" id="dlg-admin" aria-labelledby="dlg-admin-title">
+  <form method="post" action="{{abs "/admins"}}" class="dialog-inner dialog-form" data-once>
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="create">
+    <div class="dialog-head">
+      <h2 id="dlg-admin-title">Neuer WebUI-Admin</h2>
+      <button class="icon-btn" type="button" data-dialog-close aria-label="Schließen">{{icon "x"}}</button>
+    </div>
+    <div class="field">
+      <label for="na-name">Benutzername</label>
+      <input id="na-name" name="username" required maxlength="64" autocapitalize="none" spellcheck="false" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="na-pass">Passwort</label>
+      {{template "passinput" "na-pass"}}
+    </div>
+    <div class="field">
+      <span class="label">Rolle</span>
+      <div class="seg" role="radiogroup" aria-label="Rolle">
+        {{range roles}}<label><input type="radio" name="role" value="{{.}}" {{if eq . "operator"}}checked{{end}}><span>{{roleLabel .}}</span></label>{{end}}
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" type="button" data-dialog-close>Abbrechen</button>
+      <button class="btn btn-primary" type="submit">{{icon "check"}}<span>Anlegen</span></button>
+    </div>
+  </form>
+</dialog>
+
+<dialog class="dialog" id="dlg-pass" aria-labelledby="dlg-pass-title">
+  <form method="post" action="{{abs "/admins"}}" class="dialog-inner dialog-form" data-once>
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="set-pass">
+    <input type="hidden" name="username" value="" data-fill="username">
+    <div class="dialog-head">
+      <h2 id="dlg-pass-title">Passwort setzen für <span data-fill-text="username"></span></h2>
+      <button class="icon-btn" type="button" data-dialog-close aria-label="Schließen">{{icon "x"}}</button>
+    </div>
+    <div class="field">
+      <label for="sp-pass">Neues Passwort</label>
+      {{template "passinput" "sp-pass"}}
+      <small class="hint">Alle bestehenden Sitzungen dieses Kontos werden beendet.</small>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" type="button" data-dialog-close>Abbrechen</button>
+      <button class="btn btn-primary" type="submit">Passwort setzen</button>
+    </div>
+  </form>
+</dialog>
+{{end}}

@@ -1,0 +1,86 @@
+{{define "actions"}}
+<button class="btn btn-primary" type="button" data-dialog-open="#dlg-token">{{icon "plus"}}<span>Neuer Token</span></button>
+{{end}}
+
+{{define "content"}}{{$d := .Data}}{{$csrf := .CSRF}}
+{{if $d.Err}}
+<div class="alert alert-error" role="alert"><span class="alert-icon">{{icon "alert"}}</span><div class="alert-body"><div>Tokens konnten nicht gelesen werden.</div><div class="mono small">{{$d.Err}}</div></div></div>
+{{end}}
+
+<section class="card card-flush">
+  <div class="toolbar">
+    <label class="search">
+      {{icon "search"}}
+      <input type="search" placeholder="Benutzer oder Label filtern …" data-filter="#tokens-table" aria-label="Tokens filtern">
+    </label>
+    <span class="toolbar-meta" data-filter-count="#tokens-table">{{len $d.Tokens}} Einträge</span>
+  </div>
+  <div class="table-wrap">
+    <table class="table table-hover" id="tokens-table">
+      <thead><tr><th>Benutzer</th><th>Token</th><th>Label</th><th>Läuft ab</th><th>Zuletzt genutzt</th><th class="actions-col"><span class="sr-only">Aktionen</span></th></tr></thead>
+      <tbody>
+      {{range $d.Tokens}}
+        <tr>
+          <td><a class="user-cell" href="{{userURL .User}}">{{template "avatar" (dict "Name" .User "Class" "avatar-sm")}}<span class="user-name">{{.User}}</span></a></td>
+          <td><code class="mono token">{{.Masked}}</code>{{if .Provisioned}} <span class="chip chip-muted">server.yml</span>{{end}}</td>
+          <td>{{if .Label}}{{.Label}}{{else}}<span class="muted">—</span>{{end}}</td>
+          <td>{{if eq .Expires "nie"}}<span class="muted">nie</span>{{else}}{{.Expires}}{{end}}</td>
+          <td>{{if .LastAccess}}{{.LastAccess}}<div class="muted small">{{.LastOrigin}}</div>{{else}}<span class="muted">nie</span>{{end}}</td>
+          <td class="actions-col">
+            {{if not .Provisioned}}
+            <form method="post" action="{{abs "/tokens"}}" data-confirm="Token {{.Masked}} von „{{.User}}“ löschen? Anwendungen, die ihn nutzen, verlieren den Zugriff." data-confirm-ok="Löschen">
+              <input type="hidden" name="csrf" value="{{$csrf}}">
+              <input type="hidden" name="action" value="remove">
+              <input type="hidden" name="username" value="{{.User}}">
+              <input type="hidden" name="token" value="{{.Token}}">
+              <button class="icon-btn icon-btn-danger" type="submit" title="Löschen" aria-label="Token löschen">{{icon "trash"}}</button>
+            </form>
+            {{end}}
+          </td>
+        </tr>
+      {{else}}
+        <tr class="empty-row"><td colspan="6"><div class="empty">{{icon "key"}}<p>Noch keine Tokens.</p><button class="btn btn-secondary btn-sm" type="button" data-dialog-open="#dlg-token">{{icon "plus"}}<span>Ersten Token erstellen</span></button></div></td></tr>
+      {{end}}
+        <tr class="filter-empty" hidden><td colspan="6"><div class="empty">{{icon "search"}}<p>Keine Treffer.</p></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="note note-block">
+  {{icon "info"}}
+  <span>Tokens werden wie Passwörter verwendet, z. B. <code>curl -H "Authorization: Bearer tk_…" -d "Hallo" https://ntfy.example/mytopic</code>.
+  Sie haben dieselben Rechte wie der zugehörige Benutzer und werden nur bei der Erstellung vollständig angezeigt.</span>
+</div>
+
+<dialog class="dialog" id="dlg-token" aria-labelledby="dlg-token-title">
+  <form method="post" action="{{abs "/tokens"}}" class="dialog-inner dialog-form" data-once>
+    <input type="hidden" name="csrf" value="{{$csrf}}">
+    <input type="hidden" name="action" value="add">
+    <div class="dialog-head">
+      <h2 id="dlg-token-title">Neuer Access-Token</h2>
+      <button class="icon-btn" type="button" data-dialog-close aria-label="Schließen">{{icon "x"}}</button>
+    </div>
+    <div class="field">
+      <label for="tk-user">Benutzer</label>
+      <select id="tk-user" name="username" required>
+        {{range $d.Users}}<option value="{{.Username}}">{{.Username}}</option>{{end}}
+      </select>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="tk-label">Label <span class="muted">(optional)</span></label>
+        <input id="tk-label" name="label" maxlength="100" placeholder="z. B. Backup-Skript" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="tk-exp">Gültigkeit</label>
+        {{template "expiry" "tk-exp"}}
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" type="button" data-dialog-close>Abbrechen</button>
+      <button class="btn btn-primary" type="submit">{{icon "key"}}<span>Token erstellen</span></button>
+    </div>
+  </form>
+</dialog>
+{{end}}

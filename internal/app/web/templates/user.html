@@ -1,0 +1,201 @@
+{{define "header"}}{{$u := .Data.User}}
+<a class="back" href="{{abs "/users"}}">{{icon "arrow-left"}} Alle Benutzer</a>
+<div class="profile-head">
+  {{template "avatar" (dict "Name" $u.Username "Class" "avatar-xl")}}
+  <div class="profile-text">
+    <h1>{{displayUser $u.Username}}</h1>
+    <div class="chips">
+      {{if $u.IsEveryone}}<span class="badge badge-muted">anonym</span>
+      {{else if $u.IsAdmin}}<span class="badge badge-accent">{{icon "shield"}}admin</span>
+      {{else}}<span class="badge">user</span>{{end}}
+      {{if and $u.Tier (ne $u.Tier "none")}}<span class="chip">{{icon "layers"}}{{$u.Tier}}</span>{{end}}
+      {{if $u.Provisioned}}<span class="chip chip-muted">{{icon "server"}}in server.yml definiert</span>{{end}}
+    </div>
+  </div>
+</div>
+{{end}}
+
+{{define "content"}}{{$d := .Data}}{{$u := $d.User}}{{$csrf := .CSRF}}
+{{if $u.IsEveryone}}
+<div class="note note-block">{{icon "info"}}<span>Dieser Eintrag steht für <b>alle nicht angemeldeten Clients</b>. Rechte, die du hier vergibst, gelten für jeden – ganz ohne Passwort.</span></div>
+{{end}}
+{{if $u.Provisioned}}
+<div class="note note-block">{{icon "info"}}<span>Dieser Benutzer wird über <code>server.yml</code> (<code>auth-users</code>) verwaltet. Änderungen über die CLI können beim Neustart des Servers überschrieben werden.</span></div>
+{{end}}
+
+<div class="grid-2 grid-wide-left">
+  <div class="stack-lg">
+    <section class="card">
+      <div class="card-head">
+        <div><h2>Zugriffsrechte</h2><p class="card-sub">Topic-spezifische Berechtigungen{{if $u.IsEveryone}} für anonyme Clients{{end}}</p></div>
+      </div>
+      {{if $u.IsAdmin}}
+        <div class="note">{{icon "shield"}}<span>Benutzer mit der Rolle <b>admin</b> haben Lese- und Schreibzugriff auf <b>alle Topics</b>.</span></div>
+      {{else}}
+        {{if $u.Grants}}
+        <div class="table-wrap">
+          <table class="table">
+            <thead><tr><th>Topic</th><th>Berechtigung</th>{{if $.CanOperate}}<th class="actions-col"><span class="sr-only">Aktionen</span></th>{{end}}</tr></thead>
+            <tbody>
+            {{range $u.Grants}}
+              <tr>
+                <td><span class="topic">{{icon "hash"}}{{.Topic}}</span>{{if .Provisioned}} <span class="chip chip-muted">server.yml</span>{{end}}</td>
+                <td>{{template "perm" .Perm}}</td>
+                {{if $.CanOperate}}
+                <td class="actions-col">
+                  {{if not .Provisioned}}
+                  <form method="post" action="{{userAction $u.Username "revoke"}}" data-confirm="Zugriff auf „{{.Topic}}“ entfernen?" data-confirm-ok="Entfernen">
+                    <input type="hidden" name="csrf" value="{{$csrf}}">
+                    <input type="hidden" name="topic" value="{{.Topic}}">
+                    <button class="icon-btn icon-btn-danger" type="submit" title="Zugriff entfernen" aria-label="Zugriff auf {{.Topic}} entfernen">{{icon "trash"}}</button>
+                  </form>
+                  {{end}}
+                </td>
+                {{end}}
+              </tr>
+            {{end}}
+            </tbody>
+          </table>
+        </div>
+        {{else}}
+        <div class="empty empty-sm">{{icon "lock"}}<p>Keine topic-spezifischen Rechte.</p></div>
+        {{end}}
+        {{if $u.DefaultAccess}}<p class="hint hint-row">Für alle übrigen Topics gilt der Standardzugriff: {{template "perm" $u.DefaultAccess}}</p>{{end}}
+
+        {{if $.CanOperate}}
+        <form method="post" action="{{userAction $u.Username "grant"}}" class="grant-form grant-form-perm" data-once>
+          <input type="hidden" name="csrf" value="{{$csrf}}">
+          <div class="field grow">
+            <label for="g-topic">Topic oder Muster</label>
+            <input id="g-topic" name="topic" required maxlength="64" placeholder="z. B. alerts oder backup_*" pattern="[A-Za-z0-9_*][A-Za-z0-9_*\-]*" autocomplete="off" spellcheck="false">
+          </div>
+          <div class="field">
+            <span class="label">Berechtigung</span>
+            {{template "permpicker"}}
+          </div>
+          <button class="btn btn-primary" type="submit">{{icon "plus"}}<span>Vergeben</span></button>
+        </form>
+        {{end}}
+      {{end}}
+    </section>
+
+    {{if and $.CanOperate (not $u.IsEveryone)}}
+    <section class="card">
+      <div class="card-head">
+        <div><h2>Access-Tokens</h2><p class="card-sub">Für Apps und Skripte – statt Passwort</p></div>
+      </div>
+      {{if $d.TokensErr}}<div class="alert alert-error"><span class="alert-icon">{{icon "alert"}}</span><div class="alert-body mono small">{{$d.TokensErr}}</div></div>{{end}}
+      {{if $d.Tokens}}
+      <div class="table-wrap">
+        <table class="table">
+          <thead><tr><th>Token</th><th>Label</th><th>Läuft ab</th><th>Zuletzt genutzt</th><th class="actions-col"><span class="sr-only">Aktionen</span></th></tr></thead>
+          <tbody>
+          {{range $d.Tokens}}
+            <tr>
+              <td><code class="mono token">{{.Masked}}</code></td>
+              <td>{{if .Label}}{{.Label}}{{else}}<span class="muted">—</span>{{end}}</td>
+              <td>{{if eq .Expires "nie"}}<span class="muted">nie</span>{{else}}{{.Expires}}{{end}}</td>
+              <td>{{if .LastAccess}}<span title="von {{.LastOrigin}}">{{.LastAccess}}</span>{{else}}<span class="muted">nie</span>{{end}}</td>
+              <td class="actions-col">
+                {{if not .Provisioned}}
+                <form method="post" action="{{userAction $u.Username "token-remove"}}" data-confirm="Token {{.Masked}}{{if .Label}} („{{.Label}}“){{end}} löschen? Anwendungen, die ihn nutzen, verlieren den Zugriff." data-confirm-ok="Löschen">
+                  <input type="hidden" name="csrf" value="{{$csrf}}">
+                  <input type="hidden" name="token" value="{{.Token}}">
+                  <button class="icon-btn icon-btn-danger" type="submit" title="Token löschen" aria-label="Token löschen">{{icon "trash"}}</button>
+                </form>
+                {{end}}
+              </td>
+            </tr>
+          {{end}}
+          </tbody>
+        </table>
+      </div>
+      {{else if not $d.TokensErr}}
+      <div class="empty empty-sm">{{icon "key"}}<p>Keine Tokens vorhanden.</p></div>
+      {{end}}
+      <form method="post" action="{{userAction $u.Username "token-add"}}" class="grant-form" data-once>
+        <input type="hidden" name="csrf" value="{{$csrf}}">
+        <div class="field grow">
+          <label for="t-label">Label <span class="muted">(optional)</span></label>
+          <input id="t-label" name="label" maxlength="100" placeholder="z. B. Home Assistant" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="t-exp">Gültigkeit</label>
+          {{template "expiry" "t-exp"}}
+        </div>
+        <button class="btn btn-primary" type="submit">{{icon "plus"}}<span>Erstellen</span></button>
+      </form>
+    </section>
+    {{end}}
+  </div>
+
+  {{if and $.CanOperate (not $u.IsEveryone)}}
+  <div class="stack-lg">
+    <section class="card">
+      <div class="card-head"><div><h2>Konto</h2><p class="card-sub">Passwort, Rolle und Tier</p></div></div>
+      <form method="post" action="{{userAction $u.Username "password"}}" class="stack" data-once>
+        <input type="hidden" name="csrf" value="{{$csrf}}">
+        <div class="field">
+          <label for="u-pass">Neues Passwort</label>
+          {{template "passinput" "u-pass"}}
+        </div>
+        <div><button class="btn btn-secondary" type="submit">Passwort ändern</button></div>
+      </form>
+      <hr class="sep">
+      <form method="post" action="{{userAction $u.Username "role"}}" class="inline-form" data-once>
+        <input type="hidden" name="csrf" value="{{$csrf}}">
+        <div class="field grow">
+          <span class="label">Rolle</span>
+          <div class="seg" role="radiogroup" aria-label="Rolle">
+            <label><input type="radio" name="role" value="user" {{if not $u.IsAdmin}}checked{{end}}><span>user</span></label>
+            <label><input type="radio" name="role" value="admin" {{if $u.IsAdmin}}checked{{end}}><span>admin</span></label>
+          </div>
+        </div>
+        <button class="btn btn-secondary" type="submit">Speichern</button>
+      </form>
+      <hr class="sep">
+      <form method="post" action="{{userAction $u.Username "tier"}}" class="inline-form" data-once>
+        <input type="hidden" name="csrf" value="{{$csrf}}">
+        <div class="field grow">
+          <label for="u-tier">Tier</label>
+          <input id="u-tier" name="tier" list="tiers" value="{{$u.Tier}}" placeholder="none" autocomplete="off">
+        </div>
+        <button class="btn btn-secondary" type="submit">Speichern</button>
+      </form>
+      <datalist id="tiers">{{range $d.Tiers}}<option value="{{.}}">{{end}}<option value="none"></datalist>
+    </section>
+
+    <section class="card card-danger">
+      <div class="card-head"><div><h2>Gefahrenzone</h2><p class="card-sub">Diese Aktionen lassen sich nicht rückgängig machen</p></div></div>
+      <div class="danger-row">
+        <div><b>Alle Zugriffsrechte zurücksetzen</b><p class="hint">Entfernt sämtliche Topic-Berechtigungen.</p></div>
+        <form method="post" action="{{userAction $u.Username "reset"}}" data-confirm="Alle Zugriffsrechte von „{{$u.Username}}“ zurücksetzen?" data-confirm-ok="Zurücksetzen">
+          <input type="hidden" name="csrf" value="{{$csrf}}">
+          <button class="btn btn-danger-ghost" type="submit">Zurücksetzen</button>
+        </form>
+      </div>
+      <div class="danger-row">
+        <div><b>Benutzer löschen</b><p class="hint">Löscht das Konto inklusive Tokens und Rechten.</p></div>
+        <form method="post" action="{{userAction $u.Username "delete"}}" data-confirm="Benutzer „{{$u.Username}}“ endgültig löschen? Alle Tokens und Rechte gehen verloren." data-confirm-ok="Endgültig löschen">
+          <input type="hidden" name="csrf" value="{{$csrf}}">
+          <button class="btn btn-danger" type="submit">{{icon "trash"}}<span>Löschen</span></button>
+        </form>
+      </div>
+    </section>
+  </div>
+  {{else if and $.CanOperate $u.IsEveryone}}
+  <div class="stack-lg">
+    <section class="card card-danger">
+      <div class="card-head"><div><h2>Zurücksetzen</h2></div></div>
+      <div class="danger-row">
+        <div><p class="hint">Entfernt alle Rechte für anonyme Clients. Danach gilt nur noch der Standardzugriff.</p></div>
+        <form method="post" action="{{userAction $u.Username "reset"}}" data-confirm="Alle anonymen Zugriffsrechte zurücksetzen?" data-confirm-ok="Zurücksetzen">
+          <input type="hidden" name="csrf" value="{{$csrf}}">
+          <button class="btn btn-danger-ghost" type="submit">Zurücksetzen</button>
+        </form>
+      </div>
+    </section>
+  </div>
+  {{end}}
+</div>
+{{end}}

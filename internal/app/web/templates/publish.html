@@ -1,0 +1,77 @@
+{{define "content"}}{{$d := .Data}}{{$f := $d.Form}}
+{{if $d.Err}}
+<div class="alert alert-error" role="alert"><span class="alert-icon">{{icon "alert"}}</span><div class="alert-body">{{$d.Err}}</div></div>
+{{end}}
+<div class="grid-2 grid-wide-left">
+  <section class="card">
+    <form method="post" action="{{abs "/publish"}}" class="stack" id="publish-form" data-once>
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <div class="form-grid">
+        <div class="field">
+          <label for="p-topic">Topic</label>
+          <div class="input-prefix"><span>{{icon "hash"}}</span><input id="p-topic" name="topic" value="{{$f.Topic}}" required maxlength="64" pattern="[A-Za-z0-9_][A-Za-z0-9_\-]*" autocomplete="off" spellcheck="false" data-preview="topic"></div>
+        </div>
+        <div class="field">
+          <label for="p-title">Titel <span class="muted">(optional)</span></label>
+          <input id="p-title" name="title" value="{{$f.Title}}" maxlength="250" placeholder="z. B. Backup abgeschlossen" data-preview="title">
+        </div>
+      </div>
+      <div class="field">
+        <label for="p-msg">Nachricht</label>
+        <textarea id="p-msg" name="message" rows="5" required maxlength="4096" placeholder="Was möchtest du mitteilen?" data-preview="message">{{$f.Message}}</textarea>
+      </div>
+      <div class="field">
+        <span class="label">Priorität</span>
+        <div class="seg seg-prio" role="radiogroup" aria-label="Priorität">
+          <label><input type="radio" name="priority" value="1" {{if eq $f.Priority 1}}checked{{end}} data-preview="priority"><span>Minimal</span></label>
+          <label><input type="radio" name="priority" value="2" {{if eq $f.Priority 2}}checked{{end}} data-preview="priority"><span>Niedrig</span></label>
+          <label><input type="radio" name="priority" value="3" {{if eq $f.Priority 3}}checked{{end}} data-preview="priority"><span>Normal</span></label>
+          <label><input type="radio" name="priority" value="4" {{if eq $f.Priority 4}}checked{{end}} data-preview="priority"><span>Hoch</span></label>
+          <label><input type="radio" name="priority" value="5" {{if eq $f.Priority 5}}checked{{end}} data-preview="priority"><span>Dringend</span></label>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="p-tags">Tags <span class="muted">(kommagetrennt)</span></label>
+          <input id="p-tags" name="tags" value="{{$f.Tags}}" placeholder="warning, backup" autocomplete="off" data-preview="tags">
+          <small class="hint">Bekannte Tags wie <code>warning</code> oder <code>tada</code> werden als Emoji angezeigt.</small>
+        </div>
+        <div class="field">
+          <label for="p-click">Link beim Antippen <span class="muted">(optional)</span></label>
+          <input id="p-click" name="click" type="url" value="{{$f.Click}}" placeholder="https://…">
+        </div>
+      </div>
+      <details class="advanced">
+        <summary>Erweitert</summary>
+        <div class="stack">
+          <label class="check"><input type="checkbox" name="markdown" value="1" {{if $f.Markdown}}checked{{end}}><span>Nachricht als Markdown formatieren</span></label>
+          <div class="field">
+            <label for="p-token">Access-Token <span class="muted">(falls das Topic geschützt ist)</span></label>
+            <input id="p-token" name="token" type="password" placeholder="tk_…" autocomplete="off" spellcheck="false">
+            <small class="hint">Ohne Token wird anonym gesendet – dann muss der Standardzugriff oder eine Regel für „Jeder“ Schreiben erlauben.</small>
+          </div>
+        </div>
+      </details>
+      <div class="row-actions">
+        <button class="btn btn-primary" type="submit">{{icon "send"}}<span>Senden</span></button>
+      </div>
+    </form>
+  </section>
+
+  <aside class="stack-lg">
+    <section class="card card-muted">
+      <h3 class="card-title-sm">Vorschau</h3>
+      <div class="notif" id="notif-preview" data-prio="{{$f.Priority}}">
+        <div class="notif-app"><span class="notif-logo">{{icon "bell"}}</span><span>ntfy</span><span class="muted">· <span data-out="topic">{{if $f.Topic}}{{$f.Topic}}{{else}}topic{{end}}</span></span><span class="notif-prio" aria-hidden="true"></span></div>
+        <div class="notif-title"><span data-out="tags"></span><span data-out="title">{{$f.Title}}</span></div>
+        <div class="notif-msg" data-out="message">{{if $f.Message}}{{$f.Message}}{{else}}Deine Nachricht erscheint hier.{{end}}</div>
+      </div>
+    </section>
+    <section class="card card-muted">
+      <h3 class="card-title-sm">{{icon "info"}} Per Kommandozeile</h3>
+      <pre class="code" id="curl-preview"><code>curl -d "Hallo" {{$d.NtfyURL}}/<span data-out="topic">{{if $f.Topic}}{{$f.Topic}}{{else}}topic{{end}}</span></code></pre>
+      <p class="hint">Gesendet wird an <code>{{$d.NtfyURL}}</code> (<code>NTFYWUI_NTFY_URL</code>).</p>
+    </section>
+  </aside>
+</div>
+{{end}}

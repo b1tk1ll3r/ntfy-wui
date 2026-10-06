@@ -1,0 +1,30 @@
+{{define "content"}}
+{{if .LoggedIn}}
+<section class="card error-card">
+  <div class="error-code">{{.Data.Status}}</div>
+  <pre class="error-msg">{{.Data.Message}}</pre>
+  {{if eq .Data.Status 502}}
+  <div class="note">
+    {{icon "info"}}
+    <span>Die WebUI steuert ntfy über die CLI. Prüfe, ob <code>NTFYWUI_NTFY_BIN</code> stimmt, <code>/etc/ntfy/server.yml</code> eine <code>auth-file</code> enthält
+    und <code>/var/lib/ntfy</code> (die Auth-Datenbank) beschreibbar in den Container gemountet ist.</span>
+  </div>
+  {{end}}
+  <div class="row-actions">
+    <a class="btn btn-ghost" href="{{abs "/dashboard"}}">{{icon "arrow-left"}} Zur Übersicht</a>
+  </div>
+</section>
+{{else}}
+<div class="auth-card">
+  <div class="auth-brand">
+    <span class="brand-mark brand-mark-lg brand-mark-danger">{{icon "alert"}}</span>
+    <div>
+      <div class="auth-title">{{.Title}}</div>
+      <div class="auth-sub">Fehler {{.Data.Status}}</div>
+    </div>
+  </div>
+  <p class="muted">{{.Data.Message}}</p>
+  <a class="btn btn-primary btn-block" href="{{abs "/login"}}">Zur Anmeldung</a>
+</div>
+{{end}}
+{{end}}

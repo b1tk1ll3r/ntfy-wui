@@ -1,0 +1,34 @@
+{{define "content"}}
+<div class="auth-card">
+  <div class="auth-brand">
+    <span class="brand-mark brand-mark-lg">{{icon "bell"}}</span>
+    <div>
+      <div class="auth-title">ntfy<b>wui</b></div>
+      <div class="auth-sub">Verwaltung für deinen ntfy-Server</div>
+    </div>
+  </div>
+  {{template "flash" .}}
+  <form method="post" action="{{abs "/login"}}" class="stack" data-once>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <input type="hidden" name="next" value="{{.Data.Next}}">
+    <div class="field">
+      <label for="username">Benutzername</label>
+      <input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+    </div>
+    <div class="field">
+      <label for="password">Passwort</label>
+      <div class="input-group">
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button class="btn btn-ghost btn-icon" type="button" data-reveal="#password" title="Passwort anzeigen" aria-label="Passwort anzeigen">{{icon "eye"}}</button>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-block" type="submit">Anmelden {{icon "arrow-right"}}</button>
+  </form>
+  {{if .Data.Bootstrap}}
+  <div class="note">
+    {{icon "info"}}
+    <span>Noch kein Admin vorhanden. Setze <code>NTFYWUI_BOOTSTRAP_USER</code> und <code>NTFYWUI_BOOTSTRAP_PASS</code> und starte die WebUI neu.</span>
+  </div>
+  {{end}}
+</div>
+{{end}}

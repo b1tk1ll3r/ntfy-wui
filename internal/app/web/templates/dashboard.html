@@ -1,0 +1,125 @@
+{{define "content"}}{{$d := .Data}}
+{{if $d.NtfyErr}}
+<div class="alert alert-error" role="alert">
+  <span class="alert-icon">{{icon "alert"}}</span>
+  <div class="alert-body"><div><b>Die ntfy-CLI konnte nicht ausgeführt werden.</b></div><div class="mono small">{{$d.NtfyErr}}</div></div>
+</div>
+{{end}}
+
+<section class="stat-grid" aria-label="Kennzahlen">
+  <a class="stat" href="{{abs "/users"}}">
+    <span class="stat-icon">{{icon "users"}}</span>
+    <span class="stat-label">Benutzer</span>
+    <span class="stat-value">{{$d.Users}}</span>
+    <span class="stat-meta">{{$d.NtfyAdmins}} mit Admin-Rolle</span>
+  </a>
+  <a class="stat" href="{{if .CanOperate}}{{abs "/access"}}{{else}}{{abs "/users"}}{{end}}">
+    <span class="stat-icon">{{icon "lock"}}</span>
+    <span class="stat-label">Zugriffsregeln</span>
+    <span class="stat-value">{{$d.Grants}}</span>
+    <span class="stat-meta">{{$d.AnonGrants}} für anonyme Nutzer</span>
+  </a>
+  {{if $d.TokensKnown}}
+  <a class="stat" href="{{abs "/tokens"}}">
+    <span class="stat-icon">{{icon "key"}}</span>
+    <span class="stat-label">Access-Tokens</span>
+    <span class="stat-value">{{$d.Tokens}}</span>
+    <span class="stat-meta">über alle Benutzer</span>
+  </a>
+  {{end}}
+  <div class="stat">
+    <span class="stat-icon">{{icon "globe"}}</span>
+    <span class="stat-label">Standardzugriff</span>
+    <span class="stat-value stat-value-sm">{{if $d.DefaultAccess}}{{template "perm" $d.DefaultAccess}}{{else}}<span class="muted">unbekannt</span>{{end}}</span>
+    <span class="stat-meta">auth-default-access</span>
+  </div>
+  <div class="stat">
+    <span class="stat-icon">{{icon "server"}}</span>
+    <span class="stat-label">ntfy-Server</span>
+    <span class="stat-value stat-value-sm">
+      {{if $d.HealthChecked}}
+        {{if $d.Healthy}}<span class="status status-ok">{{icon "check"}} Online</span>{{else}}<span class="status status-bad">{{icon "x"}} {{$d.HealthErr}}</span>{{end}}
+      {{else if $d.NtfyErr}}<span class="status status-bad">{{icon "x"}} CLI-Fehler</span>
+      {{else}}<span class="status status-ok">{{icon "check"}} CLI bereit</span>{{end}}
+    </span>
+    <span class="stat-meta">{{if $d.NtfyVersion}}Version {{$d.NtfyVersion}}{{else}}Version unbekannt{{end}}</span>
+  </div>
+  {{if .IsAdmin}}
+  <a class="stat" href="{{abs "/admins"}}">
+    <span class="stat-icon">{{icon "shield"}}</span>
+    <span class="stat-label">WebUI-Admins</span>
+    <span class="stat-value">{{$d.WebAdmins}}</span>
+    <span class="stat-meta">Konten dieser Oberfläche</span>
+  </a>
+  {{end}}
+</section>
+
+{{if .CanOperate}}
+<section class="quick" aria-label="Schnellaktionen">
+  <a class="quick-item" href="{{abs "/users"}}#new">{{icon "user-plus"}}<span><b>Benutzer anlegen</b><small>Neues ntfy-Konto</small></span></a>
+  <a class="quick-item" href="{{abs "/access"}}">{{icon "lock"}}<span><b>Zugriff vergeben</b><small>Topic-Rechte setzen</small></span></a>
+  <a class="quick-item" href="{{abs "/tokens"}}">{{icon "key"}}<span><b>Token erstellen</b><small>Für Skripte &amp; Apps</small></span></a>
+  {{if .Publish}}<a class="quick-item" href="{{abs "/publish"}}">{{icon "send"}}<span><b>Nachricht senden</b><small>Testbenachrichtigung</small></span></a>{{end}}
+</section>
+{{end}}
+
+{{if .IsAdmin}}
+<div class="grid-2">
+  {{with $d.Chart}}
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2 id="chart-title">Aktivität</h2>
+        <p class="card-sub">Audit-Ereignisse pro Tag, letzte {{.Days}} Tage · {{.Total}} gesamt</p>
+      </div>
+    </div>
+    <figure class="chart">
+      <svg class="chart-svg" viewBox="0 0 {{.W}} {{.H}}" role="img" aria-labelledby="chart-title">
+        {{range .Ticks}}
+        <line class="chart-grid" x1="{{$.Data.Chart.PlotL}}" x2="{{$.Data.Chart.PlotR}}" y1="{{.Y}}" y2="{{.Y}}"/>
+        <text class="chart-tick" x="{{$.Data.Chart.TickX}}" y="{{.Y}}" text-anchor="end" dominant-baseline="middle">{{.Label}}</text>
+        {{end}}
+        {{range .Bars}}
+        <g class="chart-col{{if .Today}} is-today{{end}}" tabindex="0" data-tip="{{.Date}} · {{.Count}} {{plural .Count "Ereignis" "Ereignisse"}}" aria-label="{{.Date}}: {{.Count}}">
+          <rect class="chart-hit" x="{{.SlotX}}" y="{{$.Data.Chart.TopY}}" width="{{.SlotW}}" height="{{$.Data.Chart.PlotH}}"/>
+          {{if .Path}}<path class="chart-bar" d="{{.Path}}"/>{{end}}
+        </g>
+        {{if .Label}}<text class="chart-tick" x="{{.LabelX}}" y="{{$.Data.Chart.LabelY}}" text-anchor="middle">{{.Label}}</text>{{end}}
+        {{end}}
+        <line class="chart-axis" x1="{{.PlotL}}" x2="{{.PlotR}}" y1="{{.BaseY}}" y2="{{.BaseY}}"/>
+      </svg>
+    </figure>
+    <details class="chart-table">
+      <summary>Als Tabelle anzeigen</summary>
+      <table class="table table-compact">
+        <thead><tr><th>Tag</th><th class="num">Ereignisse</th></tr></thead>
+        <tbody>{{range .Bars}}<tr><td>{{.Date}}</td><td class="num">{{.Count}}</td></tr>{{end}}</tbody>
+      </table>
+    </details>
+  </section>
+  {{end}}
+
+  <section class="card">
+    <div class="card-head">
+      <div><h2>Letzte Ereignisse</h2><p class="card-sub">Aus dem Audit-Log</p></div>
+      <a class="btn btn-ghost btn-sm" href="{{abs "/audit"}}">Alle {{icon "arrow-right"}}</a>
+    </div>
+    {{if $d.Recent}}
+    <ul class="feed">
+      {{range $d.Recent}}
+      <li class="feed-item">
+        <span class="feed-dot kind-{{actionKind .Action}}"></span>
+        <div class="feed-body">
+          <div><b>{{actionLabel .Action}}</b>{{if .Target}} <span class="muted">·</span> <span class="mono">{{displayUser .Target}}</span>{{end}}</div>
+          <div class="feed-meta">{{if .Actor}}{{.Actor}} · {{end}}<time title="{{fmtTime .Time}}">{{ago .Time}}</time></div>
+        </div>
+      </li>
+      {{end}}
+    </ul>
+    {{else}}
+    <div class="empty">{{icon "activity"}}<p>Noch keine Ereignisse.</p></div>
+    {{end}}
+  </section>
+</div>
+{{end}}
+{{end}}
